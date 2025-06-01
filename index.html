@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <title>Firebase Chat with Login & Signup</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="chat-container">
+
+    <header>NuChat</header>
+
+    <div id="auth-section">
+      <div class="tabs">
+        <button id="login-tab" class="tab active">Login</button>
+        <button id="signup-tab" class="tab">Sign Up</button>
+      </div>
+
+      <form id="login-form" class="auth-form active">
+        <input type="email" id="login-email" placeholder="Email" required autocomplete="username" />
+        <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" />
+        <button type="submit">Login</button>
+        <div id="login-error" class="error"></div>
+      </form>
+
+      <form id="signup-form" class="auth-form">
+        <input type="email" id="signup-email" placeholder="Email" required autocomplete="username" />
+        <input type="password" id="signup-password" placeholder="Password (6+ chars)" required autocomplete="new-password" />
+        <button type="submit">Sign Up</button>
+        <div id="signup-error" class="error"></div>
+      </form>
+    </div>
+
+    <div id="chat-section" class="hidden">
+      <div id="user-info">
+        Logged in as <span id="display-name"></span>
+        <button id="logout-btn">Logout</button>
+      </div>
+
+      <div id="messages"></div>
+
+      <form id="chat-form">
+        <input type="text" id="message-input" placeholder="Type a message..." maxlength="200" autocomplete="off" required />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+  <script src="app.js"></script>
+
+</body>
+</html>
+  
