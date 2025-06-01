@@ -1,4 +1,4 @@
-// Your Firebase config (replace if needed)
+// Your Firebase config (unchanged)
 const firebaseConfig = {
   apiKey: "AIzaSyATFdqh-eQ8PNGJvjysMnC9euxjBCNJA0U",
   authDomain: "nuchat-a894e.firebaseapp.com",
@@ -9,7 +9,6 @@ const firebaseConfig = {
   measurementId: "G-5Q3P8ZKG1M"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -30,6 +29,8 @@ const loginError = document.getElementById('login-error');
 
 const signupEmail = document.getElementById('signup-email');
 const signupPassword = document.getElementById('signup-password');
+// Fix here: correct id with dash in between
+const signupDisplayName = document.getElementById('signup-display-name');
 const signupError = document.getElementById('signup-error');
 
 const displayNameSpan = document.getElementById('display-name');
@@ -39,7 +40,7 @@ const messagesDiv = document.getElementById('messages');
 const chatForm = document.getElementById('chat-form');
 const messageInput = document.getElementById('message-input');
 
-// Switch tabs
+// Tab switching
 loginTab.addEventListener('click', () => {
   loginTab.classList.add('active');
   signupTab.classList.remove('active');
@@ -58,13 +59,32 @@ signupTab.addEventListener('click', () => {
   signupError.textContent = '';
 });
 
-// Auth state change
-auth.onAuthStateChanged(user => {
+// Auth state change handler
+auth.onAuthStateChanged(async user => {
   if (user) {
-    authSection.classList.add('hidden');
-    chatSection.classList.remove('hidden');
-    displayNameSpan.textContent = user.email;
-    loadMessages();
+    try {
+      const userDoc = await db.collection('users').doc(user.uid).get();
+      const data = userDoc.data();
+
+      displayNameSpan.textContent = data?.displayName || user.email;
+
+      const userRole = data?.role || "user"; // default role
+
+      if (userRole === "admin") {
+        displayNameSpan.style.color = "orange"; // highlight admin name
+      } else {
+        displayNameSpan.style.color = "#00ff73"; // normal user color
+      }
+
+      authSection.classList.add('hidden');
+      chatSection.classList.remove('hidden');
+
+      loadMessages();
+
+    } catch {
+      displayNameSpan.textContent = user.email;
+      displayNameSpan.style.color = "#00ff73";
+    }
   } else {
     authSection.classList.remove('hidden');
     chatSection.classList.add('hidden');
@@ -73,7 +93,7 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// Login
+// Login form submit
 loginForm.addEventListener('submit', e => {
   e.preventDefault();
   loginError.textContent = '';
@@ -90,20 +110,33 @@ loginForm.addEventListener('submit', e => {
     });
 });
 
-// Sign Up
+// Signup form submit
 signupForm.addEventListener('submit', e => {
   e.preventDefault();
   signupError.textContent = '';
 
   const email = signupEmail.value.trim();
   const password = signupPassword.value.trim();
+  const displayName = signupDisplayName.value.trim();
 
-  if(password.length < 6){
+  if (password.length < 6) {
     signupError.textContent = 'Password must be at least 6 characters.';
     return;
   }
 
+  if (!displayName) {
+    signupError.textContent = 'Please enter a display name.';
+    return;
+  }
+
   auth.createUserWithEmailAndPassword(email, password)
+    .then(cred => {
+      // When a user signs up, store displayName and role = user by default
+      return db.collection('users').doc(cred.user.uid).set({
+        displayName,
+        role: "user"  // default role
+      });
+    })
     .then(() => {
       signupForm.reset();
     })
@@ -112,12 +145,12 @@ signupForm.addEventListener('submit', e => {
     });
 });
 
-// Logout
+// Logout button
 logoutBtn.addEventListener('click', () => {
   auth.signOut();
 });
 
-// Load messages from Firestore and listen for new ones
+// Load and listen to messages
 function loadMessages() {
   messagesDiv.innerHTML = '';
   db.collection('messages').orderBy('timestamp')
@@ -131,14 +164,25 @@ function loadMessages() {
     });
 }
 
-// Display a message in the chat box
+// Display a message with admin highlight based on role
 function displayMessage(msg) {
   const div = document.createElement('div');
   div.classList.add('message');
 
   const usernameSpan = document.createElement('div');
   usernameSpan.classList.add('username');
-  usernameSpan.textContent = msg.email;
+
+  const isAdmin = msg.role === "admin";
+
+  usernameSpan.style.color = isAdmin ? 'orange' : '#00ff73';
+
+  let usernameText = msg.displayName || 'Anonymous';
+
+  if (isAdmin) {
+    usernameText += ' [ADMIN]';
+  }
+
+  usernameSpan.textContent = usernameText;
 
   const timeSpan = document.createElement('span');
   timeSpan.classList.add('time');
@@ -156,8 +200,8 @@ function displayMessage(msg) {
   messagesDiv.appendChild(div);
 }
 
-// Send message
-chatForm.addEventListener('submit', e => {
+// Send message with role included
+chatForm.addEventListener('submit', async e => {
   e.preventDefault();
   const text = messageInput.value.trim();
   if (!text) return;
@@ -165,13 +209,22 @@ chatForm.addEventListener('submit', e => {
   const user = auth.currentUser;
   if (!user) return;
 
-  db.collection('messages').add({
-    email: user.email,
-    text,
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  })
-  .then(() => {
+  try {
+    const userDoc = await db.collection('users').doc(user.uid).get();
+    const data = userDoc.data();
+    const displayName = data?.displayName || user.email;
+    const role = data?.role || "user";
+
+    await db.collection('messages').add({
+      uid: user.uid,
+      displayName,
+      role,      // store role here
+      text,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
     messageInput.value = '';
-  })
-  .catch(console.error);
+  } catch (err) {
+    console.error(err);
+  }
 });
